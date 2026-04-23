@@ -37,11 +37,6 @@
 .annotate-root[data-active='true'] .annotate-overlay {
   pointer-events: auto;
   background: color-mix(in oklab, #000 4%, transparent);
-  cursor: crosshair;
-}
-
-.annotate-root[data-active='true'][data-multi='true'] .annotate-overlay {
-  cursor: copy;
 }
 
 /* Toolbar */

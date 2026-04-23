@@ -142,6 +142,16 @@ export function AnnotateProvider({
   // Overlay click
   const onOverlayClick = useCallback(
     (e: React.MouseEvent) => {
+      // Clicking outside the composer (but still inside the overlay) cancels
+      // it rather than letting the user get stuck with a floating dialog.
+      if (mode === 'composing') {
+        e.preventDefault()
+        e.stopPropagation()
+        setPendingPin(null)
+        setEditingId(null)
+        setMode('annotating')
+        return
+      }
       if (mode !== 'annotating') return
       e.preventDefault()
       e.stopPropagation()
@@ -330,14 +340,17 @@ export function AnnotateProvider({
           onMouseMove={onOverlayMove}
         />
 
-        <HighlightLayer
-          annotations={annotations}
-          hoverEl={hoverEl}
-          multiSelection={multiSelection}
-          composing={mode === 'composing'}
-        />
-
-        <PinLayer annotations={annotations} onPinClick={handlePinClick} />
+        {active ? (
+          <>
+            <HighlightLayer
+              annotations={annotations}
+              hoverEl={hoverEl}
+              multiSelection={multiSelection}
+              composing={mode === 'composing'}
+            />
+            <PinLayer annotations={annotations} onPinClick={handlePinClick} />
+          </>
+        ) : null}
 
         {active ? (
           <Toolbar
