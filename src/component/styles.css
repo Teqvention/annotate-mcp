@@ -1,0 +1,531 @@
+/* annotate-mcp — scoped styles, namespaced under .annotate-root */
+
+.annotate-root {
+  --ann-accent: var(--annotate-accent, oklch(68% 0.18 35));
+  --ann-accent-soft: color-mix(in oklab, var(--ann-accent) 18%, transparent);
+  --ann-surface: #ffffff;
+  --ann-surface-alt: #fafafa;
+  --ann-border: color-mix(in oklab, #000 8%, transparent);
+  --ann-text: #111;
+  --ann-muted: #6b6b6b;
+  --ann-toolbar-bg: oklch(18% 0.01 240 / 0.94);
+  --ann-toolbar-fg: #f5f5f5;
+  --ann-confidence-high: #3bb273;
+  --ann-confidence-medium: #f0a830;
+  --ann-confidence-low: #d04a4a;
+  --ann-z: 2147483000;
+  --ann-radius: 12px;
+  --ann-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--ann-z);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    sans-serif;
+  color: var(--ann-text);
+  font-feature-settings: 'ss01', 'cv11';
+}
+
+.annotate-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: background 160ms var(--ann-ease);
+}
+
+.annotate-root[data-active='true'] .annotate-overlay {
+  pointer-events: auto;
+  background: color-mix(in oklab, #000 4%, transparent);
+  cursor: crosshair;
+}
+
+.annotate-root[data-active='true'][data-multi='true'] .annotate-overlay {
+  cursor: copy;
+}
+
+/* Toolbar */
+.annotate-toolbar {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--ann-toolbar-bg);
+  color: var(--ann-toolbar-fg);
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--ann-radius);
+  box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  min-width: 256px;
+  max-width: 320px;
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 180ms var(--ann-ease), transform 180ms var(--ann-ease);
+}
+
+.annotate-root[data-active='true'] .annotate-toolbar {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.annotate-toolbar__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.annotate-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #555;
+  position: relative;
+}
+
+.annotate-root[data-active='true'] .annotate-dot {
+  background: var(--ann-accent);
+}
+
+.annotate-root[data-active='true'] .annotate-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: var(--ann-accent);
+  opacity: 0.35;
+  animation: annotate-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes annotate-pulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.35; }
+  50% { transform: scale(1.4); opacity: 0; }
+}
+
+.annotate-title {
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  font-size: 13px;
+}
+
+.annotate-sub {
+  color: #a8a8ac;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+
+.annotate-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 2px -4px;
+}
+
+.annotate-kbd {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 1px 5px;
+  letter-spacing: 0;
+}
+
+.annotate-btn {
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ann-toolbar-fg);
+  padding: 5px 10px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms var(--ann-ease), border-color 120ms var(--ann-ease);
+  letter-spacing: -0.003em;
+}
+
+.annotate-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.annotate-btn--primary {
+  background: var(--ann-accent);
+  border-color: var(--ann-accent);
+  color: #fff;
+}
+
+.annotate-btn--primary:hover {
+  background: var(--ann-accent);
+  filter: brightness(1.08);
+}
+
+.annotate-btn--danger:hover {
+  background: color-mix(in oklab, #d04a4a 25%, transparent);
+  border-color: color-mix(in oklab, #d04a4a 50%, transparent);
+}
+
+.annotate-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.annotate-btn--icon {
+  padding: 5px 8px;
+  margin-left: auto;
+}
+
+/* Highlight layer */
+.annotate-highlight-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.annotate-highlight {
+  position: absolute;
+  border: 2px solid var(--ann-accent);
+  border-radius: 5px;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  transition: opacity 150ms var(--ann-ease);
+}
+
+.annotate-highlight--hover {
+  border-style: dashed;
+  opacity: 0.8;
+}
+
+.annotate-highlight--saved {
+  opacity: 0.55;
+}
+
+.annotate-chip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: var(--ann-accent);
+  color: #fff;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 11px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pin */
+.annotate-pin-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.annotate-pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  cursor: pointer;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.25));
+  transition: transform 160ms var(--ann-ease);
+  animation: annotate-pin-drop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes annotate-pin-drop {
+  0% { transform: translate(-50%, -140%) scale(0.5); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: translate(-50%, -100%) scale(1); opacity: 1; }
+}
+
+.annotate-pin:hover {
+  transform: translate(-50%, -100%) scale(1.08);
+}
+
+.annotate-pin__body {
+  width: 28px;
+  height: 28px;
+  border-radius: 50% 50% 50% 4px;
+  background: var(--ann-accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-45deg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.annotate-pin__body > span {
+  transform: rotate(45deg);
+}
+
+/* Composer popover */
+.annotate-composer {
+  position: absolute;
+  width: 304px;
+  background: var(--ann-surface);
+  border: 1px solid var(--ann-border);
+  border-radius: var(--ann-radius);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.18), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  pointer-events: auto;
+  overflow: hidden;
+  color: var(--ann-text);
+  animation: annotate-composer-in 180ms var(--ann-ease) both;
+}
+
+@keyframes annotate-composer-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.annotate-composer__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 8px;
+}
+
+.annotate-composer__badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ann-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.annotate-composer__title {
+  font-size: 12.5px;
+  color: var(--ann-text);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotate-composer__elements {
+  padding: 4px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 88px;
+  overflow: auto;
+  border-bottom: 1px solid var(--ann-border);
+}
+
+.annotate-composer__element {
+  font-size: 11px;
+  color: var(--ann-muted);
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.annotate-confidence {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.annotate-confidence--high { background: var(--ann-confidence-high); }
+.annotate-confidence--medium { background: var(--ann-confidence-medium); }
+.annotate-confidence--low { background: var(--ann-confidence-low); }
+
+.annotate-composer__textarea {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  min-height: 76px;
+  box-sizing: border-box;
+  background: transparent;
+  color: var(--ann-text);
+  field-sizing: content;
+}
+
+.annotate-composer__textarea::placeholder {
+  color: color-mix(in oklab, var(--ann-muted) 60%, transparent);
+}
+
+.annotate-composer__footer {
+  padding: 8px 10px 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: var(--ann-surface-alt);
+  border-top: 1px solid var(--ann-border);
+}
+
+.annotate-composer__hint {
+  font-size: 11px;
+  color: var(--ann-muted);
+  letter-spacing: 0.002em;
+}
+
+.annotate-composer__hint .annotate-kbd {
+  background: #fff;
+  border-color: var(--ann-border);
+  color: var(--ann-muted);
+}
+
+.annotate-composer__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.annotate-btn-light {
+  background: #fff;
+  border: 1px solid var(--ann-border);
+  color: var(--ann-text);
+  padding: 6px 12px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: -0.003em;
+  transition: background 120ms var(--ann-ease);
+}
+
+.annotate-btn-light:hover {
+  background: #f3f3f3;
+}
+
+.annotate-btn-light--danger {
+  color: #b23535;
+}
+
+.annotate-btn-light--danger:hover {
+  background: color-mix(in oklab, #d04a4a 10%, #fff);
+}
+
+.annotate-btn-filled {
+  background: var(--ann-accent);
+  border: 1px solid var(--ann-accent);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: -0.003em;
+  transition: filter 120ms var(--ann-ease);
+}
+
+.annotate-btn-filled:hover {
+  filter: brightness(1.08);
+}
+
+/* Toast */
+.annotate-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: oklch(18% 0.01 240 / 0.96);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  z-index: calc(var(--ann-z) + 10);
+  opacity: 0;
+  transition: opacity 200ms var(--ann-ease), transform 200ms var(--ann-ease);
+  font-size: 12.5px;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+}
+
+.annotate-toast[data-visible='true'] {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.annotate-toast__btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.annotate-toast__btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .annotate-pin,
+  .annotate-composer,
+  .annotate-toolbar,
+  .annotate-overlay,
+  .annotate-highlight,
+  .annotate-toast {
+    animation: none !important;
+    transition: none !important;
+  }
+  .annotate-dot::after {
+    animation: none !important;
+  }
+}
+
+/* Respect dark mode of the host app — inherit on request */
+@media (prefers-color-scheme: dark) {
+  .annotate-root[data-adaptive='true'] {
+    --ann-surface: oklch(22% 0.01 240);
+    --ann-surface-alt: oklch(18% 0.01 240);
+    --ann-border: color-mix(in oklab, #fff 10%, transparent);
+    --ann-text: #f5f5f7;
+    --ann-muted: #a5a5aa;
+  }
+  .annotate-root[data-adaptive='true'] .annotate-btn-light {
+    background: oklch(26% 0.01 240);
+    color: #f5f5f7;
+  }
+  .annotate-root[data-adaptive='true'] .annotate-btn-light:hover {
+    background: oklch(30% 0.01 240);
+  }
+  .annotate-root[data-adaptive='true'] .annotate-composer__hint .annotate-kbd {
+    background: oklch(26% 0.01 240);
+    color: #a5a5aa;
+  }
+}

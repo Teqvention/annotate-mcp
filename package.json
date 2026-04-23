@@ -1,0 +1,84 @@
+{
+  "name": "annotate-mcp",
+  "version": "0.1.0",
+  "description": "Figma-style in-page annotation tool with MCP server — drop <Annotate /> into your layout, pin + comment on any element, and let Claude Code read the annotations through the bundled MCP server.",
+  "keywords": [
+    "annotate",
+    "mcp",
+    "claude",
+    "claude-code",
+    "react",
+    "next",
+    "figma",
+    "comments",
+    "feedback",
+    "design-review"
+  ],
+  "license": "MIT",
+  "author": "Teqvention",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Teqvention/annotate-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Teqvention/annotate-mcp/issues"
+  },
+  "homepage": "https://github.com/Teqvention/annotate-mcp#readme",
+  "type": "module",
+  "main": "./dist/component/index.js",
+  "module": "./dist/component/index.js",
+  "types": "./dist/component/index.d.ts",
+  "bin": {
+    "annotate-mcp": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/component/index.d.ts",
+      "import": "./dist/component/index.js"
+    },
+    "./styles.css": "./dist/component/styles.css",
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm clean && pnpm build && pnpm typecheck"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@radix-ui/react-popover": "^1.1.2",
+    "@radix-ui/react-portal": "^1.1.2",
+    "@radix-ui/react-slot": "^1.1.0",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/ws": "^8.5.13",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
