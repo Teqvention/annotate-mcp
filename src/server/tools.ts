@@ -37,7 +37,19 @@ export function toolList(args: z.infer<typeof listArgs>) {
 export function toolRead(args: z.infer<typeof readArgs>) {
   const ann = store.get(args.id)
   if (!ann) return { error: 'not_found', id: args.id }
-  return { annotation: ann }
+  return {
+    annotation: {
+      id: ann.id,
+      comment: ann.comment,
+      route: ann.route,
+      elements: ann.elements.map((e) => ({
+        selector: e.selector,
+        tag: e.tag,
+        text: e.text,
+        ancestors: e.ancestors ?? [],
+      })),
+    },
+  }
 }
 
 export function toolClear(_args: z.infer<typeof clearArgs>) {
@@ -53,13 +65,7 @@ export function toolDescribeCurrent() {
     pinCount: all.length,
     routes,
     latest: latest
-      ? {
-          id: latest.id,
-          comment: latest.comment,
-          route: latest.route,
-          createdAt: latest.createdAt,
-          elementCount: latest.elements.length,
-        }
+      ? { id: latest.id, comment: latest.comment, route: latest.route }
       : null,
   }
 }
@@ -67,19 +73,12 @@ export function toolDescribeCurrent() {
 function summarize(ann: Annotation) {
   return {
     id: ann.id,
-    createdAt: ann.createdAt,
-    updatedAt: ann.updatedAt,
     comment: ann.comment,
     route: ann.route,
-    pin: ann.pin,
-    elementCount: ann.elements.length,
     elements: ann.elements.map((e) => ({
       selector: e.selector,
-      confidence: e.confidence,
       tag: e.tag,
       text: e.text,
-      path: e.path,
-      rect: e.rect,
       // Compact one-line ancestor trail: class tokens and aria-labels are
       // usually the strongest grep leads back to source (e.g. a `bg-sidebar`
       // or `aria-label="Account wählen"` narrows component search a lot).

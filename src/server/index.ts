@@ -44,12 +44,10 @@ export async function run(opts: RunOptions = {}): Promise<void> {
       {
         name: 'list_annotations',
         description:
-          'List browser-captured annotations (a pin + comment + the DOM element(s) ' +
+          'List browser-captured annotations (a comment + the DOM element(s) ' +
           'the user clicked on). Each element carries:\n' +
           '  - selector: best-effort unique CSS selector\n' +
           '  - tag, text: what the element is and what it shows\n' +
-          '  - path: structural CSS path from the element up\n' +
-          '  - rect: viewport coordinates\n' +
           '  - ancestorTrail: compact ancestor chain of tag.classes[aria-label][role][data-*]#"ownText"\n' +
           '\n' +
           'How to use this to find the source code:\n' +
@@ -57,7 +55,6 @@ export async function run(opts: RunOptions = {}): Promise<void> {
           'lives in (parent classes like bg-sidebar, aria-labels, data-* attrs are the ' +
           'strongest grep targets).\n' +
           '  2. Use text + tag to locate the JSX node within that component.\n' +
-          '  3. Only fall back to coordinates if the trail is uninformative.\n' +
           '\n' +
           'Optional filters: route, since (ms timestamp), minConfidence.',
         inputSchema: {
