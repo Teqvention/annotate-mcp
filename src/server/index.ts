@@ -21,10 +21,18 @@ export interface RunOptions {
 }
 
 export async function run(opts: RunOptions = {}): Promise<void> {
-  const port = opts.port ?? 47892
+  const preferredPort = opts.port ?? 47892
   const host = opts.host ?? '127.0.0.1'
 
-  const bridge = startBridgeServer({ port, host })
+  const bridge = await startBridgeServer({ port: preferredPort, host })
+  const port = bridge.port
+  if (port !== preferredPort) {
+    // stderr, not stdout — stdio MCP transport owns stdout.
+    console.error(
+      `[annotate-mcp] port ${preferredPort} in use, bound to ${port} instead. ` +
+        `Pass port={${port}} to <Annotate /> to match.`,
+    )
+  }
 
   const server = new Server(
     { name: 'annotate-mcp', version: '0.1.0' },

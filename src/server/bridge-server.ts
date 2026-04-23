@@ -14,15 +14,21 @@ interface BridgeMessage {
 export interface BridgeServerOptions {
   port: number
   host?: string
+  /** Max additional ports to try when the preferred port is in use. */
+  maxFallbacks?: number
 }
 
-export function startBridgeServer(opts: BridgeServerOptions): {
+export interface BridgeServer {
   close: () => Promise<void>
   broadcast: (msg: BridgeMessage) => void
   clientCount: () => number
-} {
-  const { port, host = '127.0.0.1' } = opts
-  const wss = new WebSocketServer({ port, host })
+  port: number
+}
+
+export async function startBridgeServer(opts: BridgeServerOptions): Promise<BridgeServer> {
+  const { port: preferredPort, host = '127.0.0.1', maxFallbacks = 10 } = opts
+  const wss = await listenWithFallback(preferredPort, host, maxFallbacks)
+  const port = (wss.address() as { port: number }).port
   const clients = new Set<WebSocket>()
 
   wss.on('connection', (ws) => {
@@ -65,7 +71,44 @@ export function startBridgeServer(opts: BridgeServerOptions): {
     await new Promise<void>((resolve) => wss.close(() => resolve()))
   }
 
-  return { close, broadcast, clientCount: () => clients.size }
+  return { close, broadcast, clientCount: () => clients.size, port }
+}
+
+async function listenWithFallback(
+  preferredPort: number,
+  host: string,
+  maxFallbacks: number,
+): Promise<WebSocketServer> {
+  let lastErr: NodeJS.ErrnoException | null = null
+  for (let attempt = 0; attempt <= maxFallbacks; attempt++) {
+    // First attempt uses the preferred port; subsequent attempts ask the OS
+    // for any free port (port 0) so we don't collide repeatedly.
+    const port = attempt === 0 ? preferredPort : 0
+    try {
+      return await tryListen(port, host)
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException
+      if (e.code !== 'EADDRINUSE') throw err
+      lastErr = e
+    }
+  }
+  throw lastErr ?? new Error('failed to bind bridge server')
+}
+
+function tryListen(port: number, host: string): Promise<WebSocketServer> {
+  return new Promise((resolve, reject) => {
+    const wss = new WebSocketServer({ port, host })
+    const onError = (err: Error) => {
+      wss.off('listening', onListening)
+      reject(err)
+    }
+    const onListening = () => {
+      wss.off('error', onError)
+      resolve(wss)
+    }
+    wss.once('error', onError)
+    wss.once('listening', onListening)
+  })
 }
 
 function handle(msg: BridgeMessage): void {
