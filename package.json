@@ -56,6 +56,7 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "prepare": "tsup",
     "prepublishOnly": "pnpm clean && pnpm build && pnpm typecheck"
   },
   "peerDependencies": {
