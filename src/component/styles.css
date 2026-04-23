@@ -130,6 +130,10 @@
   letter-spacing: 0;
 }
 
+.annotate-legend .annotate-kbd + .annotate-kbd {
+  margin-left: 2px;
+}
+
 .annotate-btn {
   pointer-events: auto;
   background: rgba(255, 255, 255, 0.06);

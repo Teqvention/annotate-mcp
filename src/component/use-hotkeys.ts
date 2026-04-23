@@ -1,10 +1,14 @@
 import { useEffect } from 'react'
 
+export type NavDirection = 'up' | 'down' | 'left' | 'right'
+
 interface HotkeyHandlers {
   toggle: () => void
   multiOn: () => void
   multiOff: () => void
   escape: () => void
+  nav: (dir: NavDirection) => void
+  commit: (opts: { multi: boolean }) => void
 }
 
 function isTypingContext(el: EventTarget | null): boolean {
@@ -29,8 +33,28 @@ export function useHotkeys(enabled: boolean, handlers: HotkeyHandlers) {
         handlers.toggle()
         return
       }
-      if (e.key === 'Shift') handlers.multiOn()
-      if (e.key === 'Escape') handlers.escape()
+      if (e.key === 'Shift') {
+        handlers.multiOn()
+        return
+      }
+      if (e.key === 'Escape') {
+        handlers.escape()
+        return
+      }
+      // Arrow navigation + Enter commit only fire when the user isn't typing,
+      // and only while in annotation mode (the handler itself gates further
+      // on whether there's a current navEl).
+      if (isTypingContext(document.activeElement)) return
+      const dir = arrowToDir(e.key)
+      if (dir) {
+        e.preventDefault()
+        handlers.nav(dir)
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handlers.commit({ multi: e.shiftKey })
+      }
     }
 
     const onKeyUp = (e: KeyboardEvent) => {
@@ -44,4 +68,19 @@ export function useHotkeys(enabled: boolean, handlers: HotkeyHandlers) {
       document.removeEventListener('keyup', onKeyUp, true)
     }
   }, [enabled, handlers])
+}
+
+function arrowToDir(key: string): NavDirection | null {
+  switch (key) {
+    case 'ArrowUp':
+      return 'up'
+    case 'ArrowDown':
+      return 'down'
+    case 'ArrowLeft':
+      return 'left'
+    case 'ArrowRight':
+      return 'right'
+    default:
+      return null
+  }
 }

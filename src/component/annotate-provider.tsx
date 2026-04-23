@@ -9,8 +9,14 @@ import { Toolbar } from './toolbar'
 import type { Annotation, CapturedElement, Mode } from './types'
 import { captureElement } from './use-selector'
 import { useAnnotations } from './use-annotations'
-import { useHotkeys } from './use-hotkeys'
+import { useHotkeys, type NavDirection } from './use-hotkeys'
 import { createBridgeClient, type BridgeClient } from './bridge-client'
+import {
+  childMeaningful,
+  nextSibling,
+  parentMeaningful,
+  prevSibling,
+} from './selector-nav'
 
 export interface AnnotateProps {
   enabled?: boolean
@@ -45,15 +51,46 @@ export function AnnotateProvider({
   const [multi, setMulti] = useState(false)
   const [multiSelection, setMultiSelection] = useState<Element[]>([])
   const [hoverEl, setHoverEl] = useState<Element | null>(null)
+  const [navEl, setNavEl] = useState<Element | null>(null)
   const [pendingPin, setPendingPin] = useState<PendingPin | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; undo?: () => void } | null>(null)
   const [connected, setConnected] = useState(false)
+  const [currentRoute, setCurrentRoute] = useState<string>(() =>
+    typeof window === 'undefined' ? '' : window.location.pathname + window.location.search,
+  )
 
   const { annotations, create, update, remove, undoRemove, clearAll } =
     useAnnotations(storageKey)
 
   const bridgeRef = useRef<BridgeClient | null>(null)
+
+  // Route tracking — covers popstate and SPA navigations (Next.js app router
+  // calls history.pushState; we patch it once to emit a custom event).
+  useEffect(() => {
+    if (!mounted) return
+    const update = () =>
+      setCurrentRoute(window.location.pathname + window.location.search)
+    const patch = (key: 'pushState' | 'replaceState') => {
+      const orig = history[key]
+      if ((orig as unknown as { __annotatePatched?: boolean }).__annotatePatched) return
+      const wrapped = function (this: History, ...args: Parameters<typeof orig>) {
+        const r = orig.apply(this, args)
+        window.dispatchEvent(new Event('annotate:route'))
+        return r
+      } as typeof orig
+      ;(wrapped as unknown as { __annotatePatched: boolean }).__annotatePatched = true
+      history[key] = wrapped
+    }
+    patch('pushState')
+    patch('replaceState')
+    window.addEventListener('popstate', update)
+    window.addEventListener('annotate:route', update)
+    return () => {
+      window.removeEventListener('popstate', update)
+      window.removeEventListener('annotate:route', update)
+    }
+  }, [mounted])
 
   // Bridge connection
   useEffect(() => {
@@ -91,6 +128,7 @@ export function AnnotateProvider({
     setMulti(false)
     setMultiSelection([])
     setHoverEl(null)
+    setNavEl(null)
     setPendingPin(null)
     setEditingId(null)
   }, [])
@@ -118,6 +156,65 @@ export function AnnotateProvider({
     setMulti(false)
   }, [])
 
+  // Seed navEl when entering annotate mode without a hover, and ensure
+  // keyboard-selected elements stay visible.
+  useEffect(() => {
+    if (mode !== 'annotating') return
+    if (navEl && navEl.isConnected) return
+    if (hoverEl) return
+    // Start at the first visible child of <body> that's not the annotate root.
+    const first = Array.from(document.body.children).find(
+      (c) => !c.classList.contains('annotate-root') && (c as HTMLElement).offsetParent !== null,
+    )
+    if (first) setNavEl(first)
+  }, [mode, navEl, hoverEl])
+
+  const handleNav = useCallback(
+    (dir: NavDirection) => {
+      if (mode !== 'annotating') return
+      const current = navEl ?? hoverEl
+      if (!current) return
+      const target =
+        dir === 'up'
+          ? parentMeaningful(current)
+          : dir === 'down'
+            ? childMeaningful(current)
+            : dir === 'right'
+              ? nextSibling(current)
+              : prevSibling(current)
+      if (!target) return
+      setNavEl(target)
+      // Keyboard nav wins over pointer hover until the user moves the mouse.
+      setHoverEl(null)
+      if (target instanceof HTMLElement) {
+        target.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      }
+    },
+    [mode, navEl, hoverEl],
+  )
+
+  const handleCommit = useCallback(
+    (opts: { multi: boolean }) => {
+      if (mode !== 'annotating') return
+      const target = navEl ?? hoverEl
+      if (!target) return
+      if (opts.multi) {
+        setMultiSelection((sel) =>
+          sel.includes(target) ? sel.filter((s) => s !== target) : [...sel, target],
+        )
+        return
+      }
+      const rect = target.getBoundingClientRect()
+      setPendingPin({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+        elements: [captureElement(target)],
+      })
+      setMode('composing')
+    },
+    [mode, navEl, hoverEl],
+  )
+
   useHotkeys(enabled && mounted, {
     toggle: toggleMode,
     multiOn: () => {
@@ -137,6 +234,8 @@ export function AnnotateProvider({
       } else if (multi) cancelMulti()
       else if (mode === 'annotating') exit()
     },
+    nav: handleNav,
+    commit: handleCommit,
   })
 
   // Overlay click
@@ -188,9 +287,11 @@ export function AnnotateProvider({
       overlay.style.pointerEvents = ''
       if (el !== hoverEl && !(el && el.closest('.annotate-root'))) {
         setHoverEl(el)
+        // Pointer took over — drop the keyboard selection.
+        if (navEl) setNavEl(null)
       }
     },
-    [mode, multi, hoverEl],
+    [mode, multi, hoverEl, navEl],
   )
 
   const handleSave = useCallback(
@@ -317,6 +418,12 @@ export function AnnotateProvider({
     return null
   }, [mode, editingId, pendingPin, annotations])
 
+  // Annotations scoped to this route — both layers render from the same list.
+  const routeAnnotations = useMemo(
+    () => annotations.filter((a) => a.route === currentRoute),
+    [annotations, currentRoute],
+  )
+
   if (!enabled || !mounted) return null
 
   const active = mode !== 'off'
@@ -324,6 +431,8 @@ export function AnnotateProvider({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ['--annotate-accent' as any]: accent,
   }
+
+  const selectedEl = navEl ?? hoverEl
 
   return (
     <Portal>
@@ -343,12 +452,12 @@ export function AnnotateProvider({
         {active ? (
           <>
             <HighlightLayer
-              annotations={annotations}
-              hoverEl={hoverEl}
+              annotations={routeAnnotations}
+              hoverEl={selectedEl}
               multiSelection={multiSelection}
               composing={mode === 'composing'}
             />
-            <PinLayer annotations={annotations} onPinClick={handlePinClick} />
+            <PinLayer annotations={routeAnnotations} onPinClick={handlePinClick} />
           </>
         ) : null}
 
@@ -357,7 +466,7 @@ export function AnnotateProvider({
             mode={mode}
             multi={multi}
             multiCount={multiSelection.length}
-            pinCount={annotations.length}
+            pinCount={routeAnnotations.length}
             connected={connected}
             onDone={commitMulti}
             onCancelMulti={cancelMulti}

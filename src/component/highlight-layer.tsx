@@ -1,6 +1,7 @@
 import { type CSSProperties, useEffect, useState } from 'react'
 import type { Annotation, CapturedElement } from './types'
 import { resolveElement } from './use-selector'
+import { clippedRect, type DOMRectLike } from './rect-utils'
 
 interface HighlightLayerProps {
   annotations: Annotation[]
@@ -15,10 +16,13 @@ export function HighlightLayer({
   multiSelection,
   composing,
 }: HighlightLayerProps) {
-  const tick = useViewportTick()
+  // Re-render on scroll/resize/DOM mutation so highlights track their
+  // elements (and clip correctly when scrolled out of overflow:hidden
+  // containers).
+  useViewportTick()
 
   return (
-    <div className="annotate-highlight-layer" data-tick={tick}>
+    <div className="annotate-highlight-layer">
       {hoverEl && !composing ? <HoverBox el={hoverEl} /> : null}
       {multiSelection.map((el, i) => (
         <SelectionBox key={i} el={el} index={i + 1} />
@@ -33,12 +37,14 @@ export function HighlightLayer({
 }
 
 function HoverBox({ el }: { el: Element }) {
-  const rect = el.getBoundingClientRect()
+  const rect = clippedRect(el)
+  if (!rect) return null
   return <div className="annotate-highlight annotate-highlight--hover" style={rectStyle(rect)} />
 }
 
 function SelectionBox({ el, index }: { el: Element; index: number }) {
-  const rect = el.getBoundingClientRect()
+  const rect = clippedRect(el)
+  if (!rect) return null
   return (
     <>
       <div className="annotate-highlight" style={rectStyle(rect)} />
@@ -55,7 +61,8 @@ function SelectionBox({ el, index }: { el: Element; index: number }) {
 function SavedBox({ elData }: { elData: CapturedElement }) {
   const el = resolveElement(elData)
   if (!el) return null
-  const rect = el.getBoundingClientRect()
+  const rect = clippedRect(el)
+  if (!rect) return null
   return (
     <div
       className="annotate-highlight annotate-highlight--saved"
@@ -64,7 +71,7 @@ function SavedBox({ elData }: { elData: CapturedElement }) {
   )
 }
 
-function rectStyle(rect: DOMRect): CSSProperties {
+function rectStyle(rect: DOMRectLike): CSSProperties {
   return {
     left: rect.left + 'px',
     top: rect.top + 'px',
@@ -86,9 +93,13 @@ function useViewportTick(): number {
     }
     window.addEventListener('scroll', bump, true)
     window.addEventListener('resize', bump)
+    // DOM changes (collapse/expand, virtualized lists) can shift rects too.
+    const mo = new MutationObserver(bump)
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true })
     return () => {
       window.removeEventListener('scroll', bump, true)
       window.removeEventListener('resize', bump)
+      mo.disconnect()
       if (raf) cancelAnimationFrame(raf)
     }
   }, [])

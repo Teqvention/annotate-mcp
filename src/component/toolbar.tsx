@@ -61,7 +61,12 @@ export function Toolbar({
             </button>
           </>
         ) : (
-          <span className="annotate-sub">
+          <span className="annotate-sub annotate-legend">
+            <span className="annotate-kbd">↑</span>
+            <span className="annotate-kbd">↓</span>
+            <span className="annotate-kbd">←</span>
+            <span className="annotate-kbd">→</span> select ·{' '}
+            <span className="annotate-kbd">↵</span> pin ·{' '}
             Hold <span className="annotate-kbd">⇧</span> multi ·{' '}
             <span className="annotate-kbd">⎋</span> exit
           </span>
