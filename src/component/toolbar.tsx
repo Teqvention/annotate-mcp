@@ -1,9 +1,15 @@
+import { useMemo } from 'react'
+import type { Annotation } from './types'
+
 interface ToolbarProps {
   mode: 'off' | 'annotating' | 'composing'
   multi: boolean
   multiCount: number
   pinCount: number
   connected: boolean
+  annotations: Annotation[]
+  currentRoute: string
+  onJumpTo: (id: string) => void
   onDone: () => void
   onCancelMulti: () => void
   onCopy: () => void
@@ -17,6 +23,9 @@ export function Toolbar({
   multiCount,
   pinCount,
   connected,
+  annotations,
+  currentRoute,
+  onJumpTo,
   onDone,
   onCancelMulti,
   onCopy,
@@ -28,6 +37,8 @@ export function Toolbar({
     : mode === 'annotating'
       ? 'Annotation mode'
       : 'Composing'
+
+  const grouped = useMemo(() => groupByRoute(annotations), [annotations])
 
   return (
     <div className="annotate-toolbar" role="toolbar" aria-label="Annotation controls">
@@ -73,6 +84,43 @@ export function Toolbar({
         )}
       </div>
 
+      {annotations.length > 0 ? (
+        <>
+          <div className="annotate-divider" />
+          <div className="annotate-list" role="list" aria-label="All annotations">
+            {grouped.map(({ route, items }) => (
+              <div
+                key={route}
+                className="annotate-list__group"
+                data-current={route === currentRoute ? 'true' : 'false'}
+              >
+                <div className="annotate-list__heading">
+                  <span className="annotate-list__route" title={route}>
+                    {route}
+                  </span>
+                  <span className="annotate-list__count">{items.length}</span>
+                </div>
+                {items.map(({ ann, index }) => (
+                  <button
+                    key={ann.id}
+                    type="button"
+                    role="listitem"
+                    className="annotate-list__item"
+                    onClick={() => onJumpTo(ann.id)}
+                    title={ann.comment || '(no comment)'}
+                  >
+                    <span className="annotate-list__idx">{index}</span>
+                    <span className="annotate-list__comment">
+                      {ann.comment || <em className="annotate-list__empty">(no comment)</em>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
       <div className="annotate-divider" />
 
       <div className="annotate-toolbar__row">
@@ -97,4 +145,24 @@ export function Toolbar({
       </div>
     </div>
   )
+}
+
+interface Grouped {
+  route: string
+  items: Array<{ ann: Annotation; index: number }>
+}
+
+function groupByRoute(annotations: Annotation[]): Grouped[] {
+  const map = new Map<string, Grouped>()
+  annotations.forEach((ann, i) => {
+    let group = map.get(ann.route)
+    if (!group) {
+      group = { route: ann.route, items: [] }
+      map.set(ann.route, group)
+    }
+    // Index is the annotation's global number across all routes (matches the
+    // number rendered on the in-page pin, so users see the same label here).
+    group.items.push({ ann, index: i + 1 })
+  })
+  return Array.from(map.values())
 }

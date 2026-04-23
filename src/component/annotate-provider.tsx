@@ -398,6 +398,26 @@ export function AnnotateProvider({
     [annotations, mode, enter],
   )
 
+  // Jump to an annotation from the toolbar list. If it lives on a different
+  // route we navigate there first; the composer opens once the route tick
+  // picks up the new location.
+  const handleJumpTo = useCallback(
+    (id: string) => {
+      const ann = annotations.find((a) => a.id === id)
+      if (!ann) return
+      if (ann.route !== currentRoute) {
+        try {
+          history.pushState({}, '', ann.route)
+          window.dispatchEvent(new Event('annotate:route'))
+        } catch {
+          // fall through — best effort
+        }
+      }
+      handlePinClick(id)
+    },
+    [annotations, currentRoute, handlePinClick],
+  )
+
   const composerData = useMemo(() => {
     if (mode !== 'composing') return null
     if (editingId) {
@@ -473,6 +493,9 @@ export function AnnotateProvider({
             multiCount={multiSelection.length}
             pinCount={routeAnnotations.length}
             connected={connected}
+            annotations={annotations}
+            currentRoute={currentRoute}
+            onJumpTo={handleJumpTo}
             onDone={commitMulti}
             onCancelMulti={cancelMulti}
             onCopy={handleCopy}
