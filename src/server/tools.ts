@@ -78,6 +78,22 @@ function summarize(ann: Annotation) {
       confidence: e.confidence,
       tag: e.tag,
       text: e.text,
+      path: e.path,
+      rect: e.rect,
+      // Compact one-line ancestor trail: class tokens and aria-labels are
+      // usually the strongest grep leads back to source (e.g. a `bg-sidebar`
+      // or `aria-label="Account wählen"` narrows component search a lot).
+      ancestorTrail: (e.ancestors ?? []).map(ancestorLine),
     })),
   }
+}
+
+function ancestorLine(a: Annotation['elements'][number]['ancestors'][number]): string {
+  const parts: string[] = [a.tag]
+  if (a.classes.length) parts.push('.' + a.classes.slice(0, 6).join('.'))
+  if (a.ariaLabel) parts.push(`[aria-label="${a.ariaLabel}"]`)
+  if (a.role) parts.push(`[role=${a.role}]`)
+  for (const [k, v] of Object.entries(a.data)) parts.push(`[${k}="${v}"]`)
+  if (a.ownText) parts.push(`#"${a.ownText}"`)
+  return parts.join('')
 }

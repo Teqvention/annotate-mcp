@@ -44,7 +44,22 @@ export async function run(opts: RunOptions = {}): Promise<void> {
       {
         name: 'list_annotations',
         description:
-          'List annotations captured from the browser. Optional filters: route, since (timestamp ms), minConfidence.',
+          'List browser-captured annotations (a pin + comment + the DOM element(s) ' +
+          'the user clicked on). Each element carries:\n' +
+          '  - selector: best-effort unique CSS selector\n' +
+          '  - tag, text: what the element is and what it shows\n' +
+          '  - path: structural CSS path from the element up\n' +
+          '  - rect: viewport coordinates\n' +
+          '  - ancestorTrail: compact ancestor chain of tag.classes[aria-label][role][data-*]#"ownText"\n' +
+          '\n' +
+          'How to use this to find the source code:\n' +
+          '  1. Use ancestorTrail entries to identify *which component* the element ' +
+          'lives in (parent classes like bg-sidebar, aria-labels, data-* attrs are the ' +
+          'strongest grep targets).\n' +
+          '  2. Use text + tag to locate the JSX node within that component.\n' +
+          '  3. Only fall back to coordinates if the trail is uninformative.\n' +
+          '\n' +
+          'Optional filters: route, since (ms timestamp), minConfidence.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -63,7 +78,10 @@ export async function run(opts: RunOptions = {}): Promise<void> {
       },
       {
         name: 'read_annotation',
-        description: 'Return the full detail for a single annotation by id.',
+        description:
+          'Return the full annotation by id, including the complete ancestor objects ' +
+          '(classes, aria-label, role, data-* attrs, ownText) for every captured element. ' +
+          'Use this when list_annotations\' compact trail is not enough to locate the source.',
         inputSchema: {
           type: 'object',
           properties: { id: { type: 'string' } },

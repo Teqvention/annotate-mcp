@@ -1,4 +1,4 @@
-import type { CapturedElement, Confidence } from './types'
+import type { AncestorNode, CapturedElement, Confidence } from './types'
 
 export function captureElement(el: Element): CapturedElement {
   const { selector, confidence, path } = buildSelector(el)
@@ -10,7 +10,57 @@ export function captureElement(el: Element): CapturedElement {
     text: short(el.textContent ?? '', 80),
     rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
     path,
+    ancestors: captureAncestors(el),
   }
+}
+
+function captureAncestors(el: Element): AncestorNode[] {
+  const out: AncestorNode[] = []
+  let cur: Element | null = el
+  // Walk up to <body>; cap depth so JSON stays compact.
+  while (cur && cur.nodeType === 1 && cur !== document.body && out.length < 8) {
+    out.push(describeNode(cur))
+    cur = cur.parentElement
+  }
+  return out
+}
+
+function describeNode(el: Element): AncestorNode {
+  return {
+    tag: el.tagName.toLowerCase(),
+    classes: readableClasses(el),
+    ariaLabel: el.getAttribute('aria-label'),
+    role: el.getAttribute('role'),
+    data: readDataAttrs(el),
+    ownText: directText(el),
+  }
+}
+
+function readableClasses(el: Element): string[] {
+  // Drop CSS-in-JS noise (css-abc123, sc-abc123) and empty/huge tokens. Keep
+  // Tailwind utilities, BEM, and normal class names that the agent can grep.
+  return Array.from(el.classList).filter(
+    (c) => c && !/^(css-|sc-|_|[a-z0-9]{8,}-)/.test(c) && c.length <= 40,
+  )
+}
+
+function readDataAttrs(el: Element): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const attr of Array.from(el.attributes)) {
+    if (!attr.name.startsWith('data-')) continue
+    // Skip React/devtools-internal data attrs.
+    if (/^data-(react|reactid|radix-)/i.test(attr.name)) continue
+    out[attr.name] = short(attr.value, 80)
+  }
+  return out
+}
+
+function directText(el: Element): string {
+  let text = ''
+  for (const node of Array.from(el.childNodes)) {
+    if (node.nodeType === 3) text += node.textContent ?? ''
+  }
+  return short(text, 80)
 }
 
 function buildSelector(el: Element): { selector: string; confidence: Confidence; path: string } {
