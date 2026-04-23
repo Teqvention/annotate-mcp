@@ -65,8 +65,13 @@ export function AnnotateProvider({
 
   const bridgeRef = useRef<BridgeClient | null>(null)
 
-  // Route tracking — covers popstate and SPA navigations (Next.js app router
-  // calls history.pushState; we patch it once to emit a custom event).
+  // Route tracking — covers popstate and SPA navigations.
+  //
+  // Next.js / React call history.pushState during render-phase work (e.g. an
+  // insertion effect inside the router). If our patched pushState notified
+  // synchronously, a setState from the listener would fire during that phase
+  // and React 19 rightly warns. Defer the notification to a microtask so it
+  // always lands outside any React commit / effect phase.
   useEffect(() => {
     if (!mounted) return
     const update = () =>
@@ -76,7 +81,7 @@ export function AnnotateProvider({
       if ((orig as unknown as { __annotatePatched?: boolean }).__annotatePatched) return
       const wrapped = function (this: History, ...args: Parameters<typeof orig>) {
         const r = orig.apply(this, args)
-        window.dispatchEvent(new Event('annotate:route'))
+        queueMicrotask(() => window.dispatchEvent(new Event('annotate:route')))
         return r
       } as typeof orig
       ;(wrapped as unknown as { __annotatePatched: boolean }).__annotatePatched = true
